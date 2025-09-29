@@ -1,9 +1,12 @@
-// src/Pages/MyEvents.jsx
 import React, { useEffect, useState } from "react";
 
 function MyEvents() {
   const [events, setEvents] = useState([]);
-  const token = localStorage.getItem("token");
+  const [token] = useState(localStorage.getItem("token"));
+
+  // For modal
+  const [showModal, setShowModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     if (!token) return;
@@ -36,17 +39,31 @@ function MyEvents() {
     }
   };
 
-  const handleEdit = async (event) => {
-    const updatedName = prompt("Edit event name:", event.eventName);
-    if (!updatedName) return;
+  // Open modal with event details
+  const openEditModal = (event) => {
+    setSelectedEvent({ ...event });
+    setShowModal(true);
+  };
 
-    const updatedEvent = { ...event, eventName: updatedName };
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setSelectedEvent(prev => ({
+      ...prev,
+      [name]: name === "playersRequired" ? parseInt(value) : value
+    }));
+  };
 
+  // Save updated event
+  const handleSave = async () => {
     try {
-      const res = await fetch(`/api/events/${event.id}`, {
+      const res = await fetch(`/api/events/${selectedEvent.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify(updatedEvent)
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(selectedEvent)
       });
 
       if (!res.ok) {
@@ -56,6 +73,7 @@ function MyEvents() {
 
       const data = await res.json();
       setEvents(events.map(e => e.id === data.id ? data : e));
+      setShowModal(false);
       alert("Event updated ✅");
     } catch (err) {
       console.error(err);
@@ -77,12 +95,63 @@ function MyEvents() {
               <p>Players Needed: {event.playersRequired} | Gender: {event.preferredGender}</p>
               <p>Date: {event.date} | Time: {event.time}</p>
               <p>{event.description}</p>
-              <button className="btn btn-danger me-2" onClick={() => handleDelete(event.id)}>Delete</button>
-              <button className="btn btn-light" onClick={() => handleEdit(event)}>Edit</button>
+              <button
+                className="btn me-2"
+                style={{ backgroundColor: "#ff4500", color: "#fff", border: "none" }}
+                onClick={() => handleDelete(event.id)}
+              >
+                Delete
+              </button>
+              <button
+                className="btn"
+                style={{ backgroundColor: "#ff4500", color: "#fff", border: "none" }}
+                onClick={() => openEditModal(event)}
+              >
+                Edit
+              </button>
             </div>
           ))
         )}
       </div>
+
+      {/* Edit Modal */}
+      {showModal && selectedEvent && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content bg-dark text-white">
+              <div className="modal-header">
+                <h5 className="modal-title">Edit Event</h5>
+                <button type="button" className="btn-close" style={{ filter: 'invert(1)' }} onClick={() => setShowModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {["eventName","city","state","address","sportType","playersRequired","preferredGender","date","time","description"].map(field => (
+                  <div className="mb-3" key={field}>
+                    <label className="form-label">{field.replace(/([A-Z])/g, ' $1')}</label>
+                    <input
+                      type={field === "playersRequired" ? "number" : "text"}
+                      className="form-control"
+                      name={field}
+                      value={selectedEvent[field] || ""}
+                      onChange={handleChange}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ backgroundColor: "#ff4500", color: "#fff", border: "none" }}
+                  onClick={handleSave}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
