@@ -1,7 +1,8 @@
-// src/main/java/com/example/demo/model/Event.java
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "events")
@@ -21,6 +22,10 @@ public class Event {
     private String time;
     private String description;
 
+    @ElementCollection
+    private List<String> participants = new ArrayList<>(); // ✅ Track joined users
+
+    // Getters and Setters
     public Long getId() { return id; }
 
     public String getEventName() { return eventName; }
@@ -52,4 +57,7 @@ public class Event {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public List<String> getParticipants() { return participants; } // ✅ getter
+    public void setParticipants(List<String> participants) { this.participants = participants; } // ✅ setter
 }

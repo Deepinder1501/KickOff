@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -5,24 +6,38 @@ function Navbar() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // load user from localStorage
-  useEffect(() => {
-    const loadUser = () => {
-      const storedUser = localStorage.getItem("user");
-      setUser(storedUser ? JSON.parse(storedUser) : null);
-    };
+  // Load user on mount and listen for changes
+ // load user from localStorage
+ useEffect(() => {
+   const loadUser = () => {
+     try {
+       const storedUser = localStorage.getItem("user");
+       if (storedUser) {
+         setUser(JSON.parse(storedUser));
+       } else {
+         setUser(null);
+       }
+     } catch (error) {
+       console.error("Invalid user data in localStorage:", error);
+       localStorage.removeItem("user"); // clean up bad data
+       setUser(null);
+     }
+   };
 
-    loadUser();
-    window.addEventListener("userChanged", loadUser);
-    return () => {
-      window.removeEventListener("userChanged", loadUser);
-    };
-  }, []);
+   loadUser();
+   window.addEventListener("userChanged", loadUser);
+   return () => {
+     window.removeEventListener("userChanged", loadUser);
+   };
+ }, []);
+
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     setUser(null);
 
+    // Notify other components
     window.dispatchEvent(new Event("userChanged"));
 
     navigate("/login");
@@ -43,7 +58,6 @@ function Navbar() {
           KickOff 🏆
         </Link>
 
-        {/*  */}
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
@@ -73,14 +87,12 @@ function Navbar() {
             </li>
           </ul>
 
-
           <div className="d-flex">
             {user ? (
               <>
                 <span style={{ color: "#fff", marginRight: "15px" }}>
-                  Hi, {user.firstname}
+                  Hi, {user.firstname || user.name || "User"}
                 </span>
-
 
                 <Link to="/profile">
                   <button

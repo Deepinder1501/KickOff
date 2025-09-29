@@ -1,4 +1,3 @@
-// src/main/java/com/example/demo/service/EventService.java
 package com.example.demo.service;
 
 import com.example.demo.model.Event;
@@ -6,12 +5,12 @@ import com.example.demo.repository.EventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class EventService {
+
     private final EventRepository eventRepository;
 
     @Autowired
@@ -19,43 +18,54 @@ public class EventService {
         this.eventRepository = eventRepository;
     }
 
+    // Save event
     public Event saveEvent(Event event) {
         return eventRepository.save(event);
     }
 
+    // Get all events
     public List<Event> getAllEvents() {
         return eventRepository.findAll();
     }
 
+    // Get event by ID
     public Event getEventById(Long id) {
-        return eventRepository.findById(id).orElse(null);
+        return eventRepository.findById(id).orElseThrow(() -> new RuntimeException("Event not found"));
     }
 
-    //Search with filters and sorting
+    // Delete event
+    public void deleteEvent(Long id) {
+        if (!eventRepository.existsById(id)) {
+            throw new RuntimeException("Event not found");
+        }
+        eventRepository.deleteById(id);
+    }
+
+    // Search events
     public List<Event> searchEvents(String search, String sport, String gender,
                                     String city, String state, Integer minPlayers,
                                     Integer maxPlayers, String date, String sortBy) {
         List<Event> events = eventRepository.findAll();
 
         return events.stream()
-                .filter(event -> search == null ||
-                        event.getEventName().toLowerCase().contains(search.toLowerCase()) ||
-                        event.getCity().toLowerCase().contains(search.toLowerCase()) ||
-                        event.getSportType().toLowerCase().contains(search.toLowerCase()))
-                .filter(event -> sport == null || sport.isEmpty() || event.getSportType().equalsIgnoreCase(sport))
-                .filter(event -> gender == null || gender.isEmpty() || event.getPreferredGender().equalsIgnoreCase(gender))
-                .filter(event -> city == null || city.isEmpty() || event.getCity().equalsIgnoreCase(city))
-                .filter(event -> state == null || state.isEmpty() || event.getState().equalsIgnoreCase(state))
-                .filter(event -> minPlayers == null || event.getPlayersRequired() >= minPlayers)
-                .filter(event -> maxPlayers == null || event.getPlayersRequired() <= maxPlayers)
-                .filter(event -> date == null || event.getDate().equals(date))
+                .filter(e -> search == null || search.isEmpty() ||
+                        e.getEventName().toLowerCase().contains(search.toLowerCase()) ||
+                        e.getCity().toLowerCase().contains(search.toLowerCase()) ||
+                        e.getSportType().toLowerCase().contains(search.toLowerCase()))
+                .filter(e -> sport == null || sport.isEmpty() || e.getSportType().equalsIgnoreCase(sport))
+                .filter(e -> gender == null || gender.isEmpty() || e.getPreferredGender().equalsIgnoreCase(gender))
+                .filter(e -> city == null || city.isEmpty() || e.getCity().equalsIgnoreCase(city))
+                .filter(e -> state == null || state.isEmpty() || e.getState().equalsIgnoreCase(state))
+                .filter(e -> minPlayers == null || e.getPlayersRequired() >= minPlayers)
+                .filter(e -> maxPlayers == null || e.getPlayersRequired() <= maxPlayers)
+                .filter(e -> date == null || date.isEmpty() || e.getDate().equals(date))
                 .sorted(getComparator(sortBy))
                 .collect(Collectors.toList());
     }
 
-    // Sorting logic
+    // Sorting
     private Comparator<Event> getComparator(String sortBy) {
-        if (sortBy == null) return Comparator.comparing(Event::getId); // default by ID
+        if (sortBy == null) return Comparator.comparing(Event::getId);
         return switch (sortBy.toLowerCase()) {
             case "date" -> Comparator.comparing(Event::getDate);
             case "players" -> Comparator.comparing(Event::getPlayersRequired);
@@ -64,13 +74,26 @@ public class EventService {
         };
     }
 
-    //xxxJoin an event (reduce playersRequired)
-    public Event joinEvent(Long eventId) {
-        Event event = eventRepository.findById(eventId).orElse(null);
-        if (event != null && event.getPlayersRequired() > 0) {
-            event.setPlayersRequired(event.getPlayersRequired() - 1);
-            return eventRepository.save(event);
+    // Join event
+    public Event joinEvent(Long eventId, String userEmail) {
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        if (event.getParticipants() == null) {
+            event.setParticipants(new ArrayList<>());
         }
-        return null;
+
+        if (event.getParticipants().contains(userEmail)) {
+            throw new RuntimeException("You already joined this event");
+        }
+
+        if (event.getPlayersRequired() <= 0) {
+            throw new RuntimeException("Event is full");
+        }
+
+        event.getParticipants().add(userEmail);
+        event.setPlayersRequired(event.getPlayersRequired() - 1);
+
+        return eventRepository.save(event);
     }
 }

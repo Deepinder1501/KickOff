@@ -1,143 +1,121 @@
-//// src/main/java/com/example/demo/controller/UserController.java
-//package com.example.demo.controller;
-//
-//import com.example.demo.model.User;
-//import com.example.demo.repository.UserRepository;
-//import com.example.demo.service.UserService;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.http.*;
-//import org.springframework.web.bind.annotation.*;
-//
-//@CrossOrigin(origins = "*") // allow frontend React
-//@RestController
-//@RequestMapping("/api/users")
-//public class UserController {
-//
-//    private final UserService userService;
-//    private final UserRepository userRepository;
-//
-//    @Autowired
-//    public UserController(UserService userService, UserRepository userRepository) {
-//        this.userService = userService;
-//        this.userRepository = userRepository;
-//    }
-//
-//
-//    @PostMapping("/signup")
-//    public ResponseEntity<?> signup(@RequestBody User user) {
-//        try {
-//            User savedUser = userService.saveUser(user);
-//            return ResponseEntity.ok(savedUser);
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.badRequest().body(e.getMessage());
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
-//        }
-//    }
-//
-//
-//    @PostMapping("/login")
-//    public ResponseEntity<?> login(@RequestBody User loginRequest) {
-//        if (loginRequest.getEmail() == null || loginRequest.getPassword() == null) {
-//            return ResponseEntity.badRequest().body("Email and password are required");
-//        }
-//
-//        User user = userRepository.findByEmailAndPassword(loginRequest.getEmail(), loginRequest.getPassword());
-//        if (user == null) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
-//        }
-//
-//        return ResponseEntity.ok(user);
-//    }
-//    @GetMapping
-//    public ResponseEntity<?> getAllUsers() {
-//        return ResponseEntity.ok(userRepository.findAll());
-//    }
-//}
-
-
-// src/main/java/com/example/demo/controller/UserController.java
-// src/main/java/com/example/demo/controller/UserController.java
-// src/main/java/com/example/demo/controller/UserController.java
 package com.example.demo.controller;
 
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.UserService;
+import com.example.demo.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.*;
 
-@CrossOrigin(origins = "*") // allow frontend React
 @RestController
 @RequestMapping("/api/users")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5186"}) // React frontends
 public class UserController {
 
     private final UserService userService;
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    public UserController(UserService userService, UserRepository userRepository) {
+    public UserController(UserService userService, UserRepository userRepository, JwtUtil jwtUtil) {
         this.userService = userService;
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
-    //  Signup
+    // Signup
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user) {
         try {
             User savedUser = userService.saveUser(user);
             return ResponseEntity.ok(savedUser);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 
-    //  Login
+    // Login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User loginRequest) {
-        if (loginRequest.getEmail() == null || loginRequest.getPassword() == null) {
-            return ResponseEntity.badRequest().body("Email and password are required");
+        User user = userRepository.findByEmail(loginRequest.getEmail());
+        if (user == null || !userService.matchesPassword(loginRequest.getPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid credentials"));
         }
 
-        User user = userRepository.findByEmailAndPassword(loginRequest.getEmail(), loginRequest.getPassword());
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
-        }
+        String token = jwtUtil.generateToken(user.getEmail());
 
-        return ResponseEntity.ok(user);
+        Map<String, Object> userMap = new HashMap<>();
+        userMap.put("id", user.getId());
+        userMap.put("name", user.getName());
+        userMap.put("firstname", user.getFirstname());
+        userMap.put("lastname", user.getLastname());
+        userMap.put("email", user.getEmail());
+        userMap.put("role", user.getRole());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("user", userMap);
+
+        return ResponseEntity.ok(response);
     }
 
-    // Get all users
-    @GetMapping
-    public ResponseEntity<?> getAllUsers() {
-        return ResponseEntity.ok(userRepository.findAll());
-    }
-
-    //  Get user by ID
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        Optional<User> user = userService.getUserById(id);
-        if (user.isPresent()) {
-            return ResponseEntity.ok(user.get());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found");
-        }
-    }
-
-    // Update user
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+    // Admin-only delete
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id,
+                                        @RequestHeader("Authorization") String authHeader) {
         try {
-            User savedUser = userService.updateUser(id, updatedUser);
-            return ResponseEntity.ok(savedUser);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Missing or invalid token"));
+            }
+
+            String token = authHeader.replace("Bearer ", "");
+            String email = jwtUtil.extractEmail(token);
+            User currentUser = userRepository.findByEmail(email);
+
+            if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only admins can delete users"));
+            }
+
+            userService.deleteUser(id);
+            return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // Get all users (admin-only)
+    @GetMapping
+    public ResponseEntity<?> getAllUsers(@RequestHeader("Authorization") String authHeader) {
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Missing or invalid token"));
+            }
+
+            String token = authHeader.replace("Bearer ", "");
+            String email = jwtUtil.extractEmail(token);
+            User currentUser = userRepository.findByEmail(email);
+
+            if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only admins can view users"));
+            }
+
+            List<User> users = userService.getAllUsers();
+            return ResponseEntity.ok(users);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 }
-

@@ -12,6 +12,8 @@ import Contact from "./pages/Contact";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
+import AdminPanel from "./pages/AdminPanel";
+
 function App() {
   return (
     <Router>
@@ -25,6 +27,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
       <Footer />
     </Router>

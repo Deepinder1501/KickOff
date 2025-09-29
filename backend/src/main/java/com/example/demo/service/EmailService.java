@@ -7,14 +7,15 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
+
     @Autowired
     private JavaMailSender mailSender;
 
-    // Send message to you + confirmation to user
+    // Send message to admin + confirmation to user
     public void sendContactEmail(String firstName, String lastName, String email, String phone, String message) {
-        // ✅ 1. Send email to you
+        // 1. Send email to admin
         SimpleMailMessage adminMessage = new SimpleMailMessage();
-        adminMessage.setTo("deepinder1501@gmail.com");
+        adminMessage.setTo("deepinder1501@gmail.com"); // your email
         adminMessage.setSubject("📩 New Contact Form Submission");
         adminMessage.setText(
                 "You received a new contact form submission:\n\n" +
@@ -25,7 +26,7 @@ public class EmailService {
         );
         mailSender.send(adminMessage);
 
-        // ✅ 2. Send confirmation email to user
+        // 2. Send confirmation email to user
         SimpleMailMessage userMessage = new SimpleMailMessage();
         userMessage.setTo(email);
         userMessage.setSubject("✅ We received your message - KickOff Support");
