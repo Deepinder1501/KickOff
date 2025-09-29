@@ -8,7 +8,10 @@ import java.util.List;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    //  Custom search across multiple fields
+    // ✅ Get events created by a specific user
+    List<Event> findByCreatorId(Long creatorId);
+
+    // ✅ Custom search across multiple fields
     @Query("SELECT e FROM Event e WHERE " +
             "(:search IS NULL OR LOWER(e.eventName) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "OR LOWER(e.city) LIKE LOWER(CONCAT('%', :search, '%')) " +

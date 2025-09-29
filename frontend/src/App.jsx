@@ -11,6 +11,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import MyEvents from "./pages/MyEvents";
 
 import AdminPanel from "./pages/AdminPanel";
 
@@ -28,6 +29,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/my-events" element={<MyEvents />} />
+
       </Routes>
       <Footer />
     </Router>

@@ -7,30 +7,28 @@ function Navbar() {
   const navigate = useNavigate();
 
   // Load user on mount and listen for changes
- // load user from localStorage
- useEffect(() => {
-   const loadUser = () => {
-     try {
-       const storedUser = localStorage.getItem("user");
-       if (storedUser) {
-         setUser(JSON.parse(storedUser));
-       } else {
-         setUser(null);
-       }
-     } catch (error) {
-       console.error("Invalid user data in localStorage:", error);
-       localStorage.removeItem("user"); // clean up bad data
-       setUser(null);
-     }
-   };
+  useEffect(() => {
+    const loadUser = () => {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Invalid user data in localStorage:", error);
+        localStorage.removeItem("user"); // clean up bad data
+        setUser(null);
+      }
+    };
 
-   loadUser();
-   window.addEventListener("userChanged", loadUser);
-   return () => {
-     window.removeEventListener("userChanged", loadUser);
-   };
- }, []);
-
+    loadUser();
+    window.addEventListener("userChanged", loadUser);
+    return () => {
+      window.removeEventListener("userChanged", loadUser);
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -75,6 +73,15 @@ function Navbar() {
                 Join Game
               </Link>
             </li>
+
+            {user && (
+              <li className="nav-item">
+                <Link to="/my-events" className="nav-link" style={{ color: "#fff" }}>
+                  My Events
+                </Link>
+              </li>
+            )}
+
             <li className="nav-item">
               <Link to="/about" className="nav-link" style={{ color: "#fff" }}>
                 About
