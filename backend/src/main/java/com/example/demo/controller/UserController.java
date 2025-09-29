@@ -51,11 +51,13 @@ public class UserController {
 
         Map<String, Object> userMap = new HashMap<>();
         userMap.put("id", user.getId());
-        userMap.put("name", user.getName());
+        userMap.put("name", user.getFirstname() + " " + user.getLastname());
         userMap.put("firstname", user.getFirstname());
         userMap.put("lastname", user.getLastname());
         userMap.put("email", user.getEmail());
         userMap.put("role", user.getRole());
+        userMap.put("age", user.getAge());
+        userMap.put("gender", user.getGender());
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
@@ -64,10 +66,10 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // Admin-only delete
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id,
-                                        @RequestHeader("Authorization") String authHeader) {
+    // Get user by ID (profile)
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable Long id,
+                                         @RequestHeader("Authorization") String authHeader) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -78,13 +80,20 @@ public class UserController {
             String email = jwtUtil.extractEmail(token);
             User currentUser = userRepository.findByEmail(email);
 
-            if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+            if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("error", "Only admins can delete users"));
+                        .body(Map.of("error", "Invalid token"));
             }
 
-            userService.deleteUser(id);
-            return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+            if (!currentUser.getId().equals(id) && !"ROLE_ADMIN".equals(currentUser.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "You can only access your own profile"));
+            }
+
+            User user = userService.getUserById(id)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            return ResponseEntity.ok(user);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -92,9 +101,11 @@ public class UserController {
         }
     }
 
-    // Get all users (admin-only)
-    @GetMapping
-    public ResponseEntity<?> getAllUsers(@RequestHeader("Authorization") String authHeader) {
+    // Update user
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id,
+                                        @RequestHeader("Authorization") String authHeader,
+                                        @RequestBody User updatedUser) {
         try {
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -105,13 +116,18 @@ public class UserController {
             String email = jwtUtil.extractEmail(token);
             User currentUser = userRepository.findByEmail(email);
 
-            if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+            if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(Map.of("error", "Only admins can view users"));
+                        .body(Map.of("error", "Invalid token"));
             }
 
-            List<User> users = userService.getAllUsers();
-            return ResponseEntity.ok(users);
+            if (!currentUser.getId().equals(id) && !"ROLE_ADMIN".equals(currentUser.getRole())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "You can only update your own profile"));
+            }
+
+            User savedUser = userService.updateUser(id, updatedUser);
+            return ResponseEntity.ok(savedUser);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
