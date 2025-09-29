@@ -24,7 +24,7 @@ function Login() {
       if (response.ok) {
         const data = await response.json();
 
-        // ✅ store token and user as JSON
+        // store token and user as JSON
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
 

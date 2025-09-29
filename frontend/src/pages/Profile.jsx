@@ -2,17 +2,9 @@ import React, { useState, useEffect } from "react";
 
 function Profile() {
   const [formData, setFormData] = useState({
-    id: "",
-    firstname: "",
-    lastname: "",
-    age: "",
-    gender: "",
-    email: "",
-    password: "",
+    id: "",firstname: "",lastname: "",age: "",gender: "",email: "", password: "",
   });
-
   const token = localStorage.getItem("token");
-
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
     if (!storedUser || !token) return;

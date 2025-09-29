@@ -134,4 +134,43 @@ public class UserController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    // Get all users (Admin only)
+    @GetMapping
+    public ResponseEntity<?> getAllUsers(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Missing or invalid token"));
+        }
+
+        String token = authHeader.replace("Bearer ", "");
+        String email = jwtUtil.extractEmail(token);
+        User currentUser = userRepository.findByEmail(email);
+
+        if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Admins only"));
+        }
+
+        return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    // Delete user (Admin only)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id,
+                                        @RequestHeader("Authorization") String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Missing or invalid token"));
+        }
+
+        String token = authHeader.replace("Bearer ", "");
+        String email = jwtUtil.extractEmail(token);
+        User currentUser = userRepository.findByEmail(email);
+
+        if (currentUser == null || !"ROLE_ADMIN".equals(currentUser.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Admins only"));
+        }
+
+        userService.deleteUser(id);
+        return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
+    }
+
 }
